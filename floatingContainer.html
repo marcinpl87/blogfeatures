@@ -7,5 +7,30 @@
   and put the content you want to float to that div.
 -->
 
+<style media="screen" type="text/css">
+  .floatingContainer {
+    position: fixed;
+    top: 0;
+  }
+</style>
+
+<script type="text/javascript"
+src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+<script type="text/javascript">
+  var startScrollingPosition = 138;
+  var containerHandler = ".widget-wrap";
+  $(function(){
+    $(window).scroll(function() {
+      var currentPosition = $(window).scrollTop();
+      if (currentPosition >= startScrollingPosition) {
+        $(containerHandler).addClass("floatingContainer");
+      }
+      else {
+        $(containerHandler).removeClass("floatingContainer");
+      }
+    });
+  });
+</script>
+
 </body>
 </html>
