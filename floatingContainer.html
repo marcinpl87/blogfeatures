@@ -17,8 +17,20 @@
 <script type="text/javascript"
 src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
 <script type="text/javascript">
-  var startScrollingPosition = 138;
+  var startScrollingPosition = 138; //script will start scrolling on this pixel (from top)
+  var footerHeight = 250; //script will stop scrolling on this pixel (from bottom)
   var containerHandler = ".widget-wrap";
+  function divPositioning() {
+    var bottomEdge = $('.floatingContainer').offset().top + $('.floatingContainer').height();
+  	var maxBottom = $(document).height() - footerHeight;
+  	var diff = maxBottom - bottomEdge;
+  	if (diff <= 0) {
+  		$('.floatingContainer').css('top', parseInt($('.floatingContainer').css('top')) + diff);
+  	}
+  	else {
+  		$('.floatingContainer').css('top', 0);
+  	}
+  }
   $(function(){
     $(window).scroll(function() {
       var currentPosition = $(window).scrollTop();
@@ -28,6 +40,7 @@ src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
       else {
         $(containerHandler).removeClass("floatingContainer");
       }
+      divPositioning();
     });
   });
 </script>
