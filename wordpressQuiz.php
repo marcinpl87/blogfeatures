@@ -8,7 +8,8 @@ function page_quiz_content() {
 			"1": {
 				"q": "Czy chcesz wypełnić antietę?",
 				"a": {
-					"1": "tak"
+					"1": "tak",
+					"2": "nie"
 				}
 			},
 			"2": {
@@ -33,19 +34,23 @@ function page_quiz_content() {
 	$questions = json_decode($questionsJson, true);
 	$questionNumber = $_GET['q'] + 1; ?>
 	<? if(questions): ?>
-	<form method="post" action="?q=<?=$questionNumber?>">
-		<? if (!$_GET['q']): ?>
-			<input type="submit" value="START QUIZ" />
-		<? else: ?>
-			<p><?= $questions[$_GET['q']]['q'] ?></p>
-			<? foreach($questions[$_GET['q']]['a'] as $q): ?>
-				<label>
-					<input type="radio" name="question" /><?= $q ?>
-				</label><br />
-			<? endforeach ?>
-			<input type="submit" value="next" />
-		<? endif ?>
-	</form>
+		<form method="post" action="?q=<?=$questionNumber?>" name="quizform" onsubmit="return(function(el){for (var i=el.length;i--;) {if (el[i].checked) {return true;}}alert('ERROR');return false;})(document.quizform.question)">
+			<? if (!$_GET['q']): ?>
+				<input type="submit" value="START QUIZ" />
+			<? else: ?>
+				<? if ($questions[$_GET['q']]['q']): ?>
+					<p><?= $questions[$_GET['q']]['q'] ?></p>
+					<? foreach($questions[$_GET['q']]['a'] as $q): ?>
+						<label>
+							<input type="radio" name="question" value="1"><?= $q ?>
+						</label><br />
+					<? endforeach ?>
+					<input type="submit" value="next" />
+				<? else: ?>
+					End of the quiz!
+				<? endif ?>
+			<? endif ?>
+		</form>
 	<? else: ?>
 		Wrong questions json array!
 	<? endif ?>
