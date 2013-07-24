@@ -56,14 +56,14 @@ function page_quiz_content() {
 				<? if ($questions[$_GET['q']]['q']): ?>
 					<p><?= $questions[$_GET['q']]['q'] ?></p>
 					<input type="hidden" name="questionNumber" value="<?= $_GET['q'] ?>" />
-					<input type="hidden" name="history" value='<?
-						$historyArr = unserialize($_POST['history']);
+					<?
+						$historyArr = unserialize(stripslashes($_POST['history']));
 						if (!$historyArr) {
 							$historyArr = array();
 						}
 						array_push($historyArr, array('q' => $_POST['questionNumber'], 'a' => $_POST['answer']));
-						echo serialize($historyArr);
-					?>' />
+					?>
+					<input type="hidden" name="history" value='<?= serialize($historyArr); ?>' />
 					<? foreach($questions[$_GET['q']]['a'] as $k => $q): ?>
 						<label>
 							<input type="radio" name="answer" value="<?= $k ?>"><?= $q ?>
@@ -71,9 +71,15 @@ function page_quiz_content() {
 					<? endforeach ?>
 					<input type="submit" value="next" />
 				<? else: ?>
-					End of the quiz!
-<? var_dump($_POST['history']); ?>
-<? var_dump(unserialize($_POST['history'])); ?>
+					End of the quiz!<br />
+					<?
+						$historyArr = unserialize(stripslashes($_POST['history']));
+						if (!$historyArr) {
+							$historyArr = array();
+						}
+						array_push($historyArr, array('q' => $_POST['questionNumber'], 'a' => $_POST['answer']));
+						var_dump($historyArr);
+					?>
 				<? endif ?>
 			<? endif ?>
 		</form>
