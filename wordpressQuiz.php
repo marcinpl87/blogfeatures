@@ -2,6 +2,19 @@
 /**
  * Template Name: Quiz
  */
+function showScore($questions, $results) {
+	$return = '<br /><h3>Wynik:</h3><br />';
+	$score = 0;
+	foreach($results as $key => $result) {
+		if ($questions[$result['q']]['q'] && $questions[$result['q']]['a'][$result['a']]) {
+			$return .= \"".$questions[$result['q']]['q']."\" - twoja odpowiedź: \"".$questions[$result['q']]['a'][$result['a']]."\"<br />";
+			$return .= "Zdobyte punkty: ".$questions[$result['q']]['p'][$result['a']]."<br /><br />";
+			$score += $questions[$result['q']]['p'][$result['a']];
+		}
+	}
+	$return .= "Twój wynik: ".$score;
+	return $return;
+}
 function page_quiz_content() {
 	$questionsJson = '
 		{
@@ -71,14 +84,13 @@ function page_quiz_content() {
 					<? endforeach ?>
 					<input type="submit" value="next" />
 				<? else: ?>
-					End of the quiz!<br />
 					<?
 						$historyArr = unserialize(stripslashes($_POST['history']));
 						if (!$historyArr) {
 							$historyArr = array();
 						}
 						array_push($historyArr, array('q' => $_POST['questionNumber'], 'a' => $_POST['answer']));
-						var_dump($historyArr);
+						echo showScore($questions, $historyArr);
 					?>
 				<? endif ?>
 			<? endif ?>
