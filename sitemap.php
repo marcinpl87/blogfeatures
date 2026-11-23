@@ -183,27 +183,60 @@ function sitemap_items_from_menu( $menu, $pub, $hosts, $front, $by_path, $by_slu
 	return $items;
 }
 
-function sitemap_items_from_navigation_blocks( $pub, $hosts, $front, $by_path, $by_slug ) {
-	$posts = get_posts(
-		array(
-			'post_type'   => 'wp_navigation',
-			'post_status' => array( 'publish', 'draft' ),
-			'numberposts' => -1,
-		)
-	);
-	$items = array();
-	$seq   = 0;
-	$walk  = function ( $blocks, $parent ) use ( &$walk, &$items, &$seq, $pub, $hosts, $front, $by_path, $by_slug ) {
+function sitemap_menu_item_key( $item ) {
+	if ( ! empty( $item['target'] ) ) {
+		return 'p:' . $item['target'];
+	}
+	$url = strtolower( trim( (string) $item['url'] ) );
+	if ( $url !== '' ) {
+		return 'u:' . $url;
+	}
+	return 'id:' . $item['id'];
+}
+
+function sitemap_merge_menu_items( $base, $extra ) {
+	$kept  = array();
+	$remap = array();
+	foreach ( $base as $item ) {
+		$kept[ sitemap_menu_item_key( $item ) ] = $item['id'];
+	}
+	foreach ( $extra as $item ) {
+		$key = sitemap_menu_item_key( $item );
+		if ( isset( $kept[ $key ] ) ) {
+			$remap[ $item['id'] ] = $kept[ $key ];
+			continue;
+		}
+		$kept[ $key ] = $item['id'];
+		$base[]       = $item;
+	}
+	if ( $remap ) {
+		foreach ( $base as &$item ) {
+			if ( isset( $remap[ $item['parent'] ] ) ) {
+				$item['parent'] = $remap[ $item['parent'] ];
+			}
+		}
+		unset( $item );
+	}
+	return $base;
+}
+
+function sitemap_items_from_navigation_post( $post, $pub, $hosts, $front, $by_path, $by_slug ) {
+	$items  = array();
+	$seq    = 0;
+	$prefix = 'b' . (int) $post->ID . '-';
+	$walk   = function ( $blocks, $parent ) use ( &$walk, &$items, &$seq, $prefix, $pub, $hosts, $front, $by_path, $by_slug ) {
 		foreach ( $blocks as $block ) {
 			$name = isset( $block['blockName'] ) ? $block['blockName'] : '';
 			if ( $name === 'core/navigation-link' || $name === 'core/navigation-submenu' ) {
 				$seq++;
-				$id     = 'b' . $seq;
+				$id     = $prefix . $seq;
 				$attrs  = isset( $block['attrs'] ) && is_array( $block['attrs'] ) ? $block['attrs'] : array();
 				$label  = isset( $attrs['label'] ) ? wp_strip_all_tags( (string) $attrs['label'] ) : '';
 				$url    = isset( $attrs['url'] ) ? (string) $attrs['url'] : '';
+				$kind   = isset( $attrs['kind'] ) ? (string) $attrs['kind'] : '';
+				$type   = isset( $attrs['type'] ) ? (string) $attrs['type'] : '';
 				$target = null;
-				if ( isset( $attrs['kind'], $attrs['id'] ) && $attrs['kind'] === 'post-type' && isset( $pub[ (string) $attrs['id'] ] ) ) {
+				if ( isset( $attrs['id'] ) && ( $kind === 'post-type' || $type === 'page' || $type === 'post' ) && isset( $pub[ (string) $attrs['id'] ] ) ) {
 					$target = (string) $attrs['id'];
 				} else {
 					$resolved = sitemap_resolve( $url, $hosts, $front, $pub, $by_path, $by_slug );
@@ -226,9 +259,7 @@ function sitemap_items_from_navigation_blocks( $pub, $hosts, $front, $by_path, $
 			}
 		}
 	};
-	foreach ( $posts as $post ) {
-		$walk( parse_blocks( (string) $post->post_content ), '0' );
-	}
+	$walk( parse_blocks( (string) $post->post_content ), '0' );
 	return $items;
 }
 
@@ -418,8 +449,51 @@ function sitemap_collect() {
 			$main_items = array_merge( $main_items, $items );
 		}
 	}
-	if ( ! $main_items ) {
-		$main_items = sitemap_items_from_navigation_blocks( $pub, $hosts, $front, $by_path, $by_slug );
+	// Site Editor navigations (Appearance → Editor → Navigation), e.g. "TOP MAIN MENU".
+	// A classic menu of any size used to hide these, so the graph kept only that menu.
+	$nav_posts = get_posts(
+		array(
+			'post_type'   => 'wp_navigation',
+			'post_status' => array( 'publish', 'draft' ),
+			'numberposts' => -1,
+			'orderby'     => 'ID',
+			'order'       => 'ASC',
+		)
+	);
+	if ( is_array( $nav_posts ) ) {
+		usort(
+			$nav_posts,
+			function ( $a, $b ) {
+				$rank = array( 'publish' => 0, 'draft' => 1 );
+				return ( $rank[ $a->post_status ] ?? 2 ) <=> ( $rank[ $b->post_status ] ?? 2 );
+			}
+		);
+		$nav_main  = array();
+		$nav_other = array();
+		foreach ( $nav_posts as $nav_post ) {
+			$items = sitemap_items_from_navigation_post( $nav_post, $pub, $hosts, $front, $by_path, $by_slug );
+			if ( ! $items ) {
+				continue;
+			}
+			$role = sitemap_menu_role( $nav_post->post_title, array(), 0 );
+			if ( $role === 'side' ) {
+				$side_items = array_merge( $side_items, $items );
+			} elseif ( $role === 'main' ) {
+				$nav_main = array_merge( $nav_main, $items );
+			} else {
+				$nav_other[] = $items;
+			}
+		}
+		$main_items = sitemap_merge_menu_items( $main_items, $nav_main );
+		if ( ! $main_items && $nav_other ) {
+			usort(
+				$nav_other,
+				function ( $a, $b ) {
+					return count( $b ) <=> count( $a );
+				}
+			);
+			$main_items = $nav_other[0];
+		}
 	}
 	$main_tree = sitemap_tree( $main_items );
 	$side_tree = sitemap_tree( $side_items );
@@ -440,22 +514,40 @@ function sitemap_collect() {
 		}
 	}
 
-	$section   = array();
-	$top_label = array();
-	$externals = array();
+	$section    = array();
+	$top_label  = array();
+	$externals  = array();
 	$edges_menu = array();
+	$menu_seen  = array();
+	// The header menu is rendered on every page. Drawing each of its links from
+	// every page would cover the graph with arrows, so the whole menu is shown
+	// once, as links from the front page. Nested items still keep a parent edge.
+	$add_menu_edge = function ( $from, $to ) use ( &$edges_menu, &$menu_seen ) {
+		if ( $from === '' || $to === '' || $from === $to ) {
+			return;
+		}
+		$key = $from . "\0" . $to;
+		if ( isset( $menu_seen[ $key ] ) ) {
+			return;
+		}
+		$menu_seen[ $key ] = true;
+		$edges_menu[]      = array( $from, $to );
+	};
 	if ( $front !== '' ) {
 		$section[ $front ] = 'Home';
 	}
-	$walk = function ( $nodes, $sec, $parent_target ) use ( &$walk, &$section, &$edges_menu ) {
+	$walk = function ( $nodes, $sec, $parent_target ) use ( &$walk, &$section, $add_menu_edge, $front ) {
 		foreach ( $nodes as $item ) {
 			$target = $item['target'];
 			if ( $target ) {
 				if ( ! isset( $section[ $target ] ) ) {
 					$section[ $target ] = $sec;
 				}
-				if ( $parent_target && $parent_target !== $target ) {
-					$edges_menu[] = array( $parent_target, $target );
+				if ( $front !== '' ) {
+					$add_menu_edge( $front, $target );
+				}
+				if ( $parent_target && $parent_target !== $target && $parent_target !== $front ) {
+					$add_menu_edge( $parent_target, $target );
 				}
 			}
 			$walk( $item['children'], $sec, $target ? $target : $parent_target );
@@ -464,14 +556,14 @@ function sitemap_collect() {
 	foreach ( $main_tree as $top ) {
 		if ( $top['target'] ) {
 			if ( $front !== '' ) {
-				$edges_menu[] = array( $front, $top['target'] );
+				$add_menu_edge( $front, $top['target'] );
 			}
 			$section[ $top['target'] ]   = 'Main menu';
 			$top_label[ $top['target'] ] = $top['label'];
 		} elseif ( $top['url'] ) {
 			$eid = 'ext-' . count( $externals );
 			if ( $front !== '' ) {
-				$edges_menu[] = array( $front, $eid );
+				$add_menu_edge( $front, $eid );
 			}
 			$externals[] = array(
 				'id'       => $eid,
