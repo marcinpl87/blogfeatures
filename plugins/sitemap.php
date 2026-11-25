@@ -759,6 +759,9 @@ function sitemap_render_page() {
 		</div>
 		<div class="sitemap-graph" id="sitemap-graph">
 			<svg id="sitemap-svg"><g id="sitemap-vp"><g id="sitemap-g-sec"></g><g id="sitemap-g-e"></g><g id="sitemap-g-n"></g><g id="sitemap-g-l"></g></g></svg>
+			<button type="button" class="sitemap-fs" id="sitemap-fs" title="Full screen" aria-label="Full screen">
+				<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4"/></svg>
+			</button>
 			<div class="sitemap-tip" id="sitemap-tip"></div>
 			<div class="sitemap-panel" id="sitemap-panel"></div>
 		</div>
@@ -785,8 +788,12 @@ function sitemap_render_page() {
 		.sitemap-tools input[type=search] { flex:1 1 220px; min-width:180px; background:#fff; color:#1d2327; border:1px solid #8c8f94; border-radius:4px; padding:6px 8px; }
 		.sitemap-tools label { display:flex; gap:5px; align-items:center; color:var(--mut); }
 		.sitemap-graph { position:relative; height:640px; background:#fff; border:1px solid var(--bd); border-radius:4px; overflow:hidden; }
-		.sitemap-graph svg { width:100%; height:100%; display:block; cursor:grab; touch-action:none; background:#fff; }
-		.sitemap-graph svg.drag { cursor:grabbing; }
+		.sitemap-graph:fullscreen { width:100%; height:100%; border:0; border-radius:0; background:#fff; }
+		.sitemap-graph > svg { width:100%; height:100%; display:block; cursor:grab; touch-action:none; background:#fff; }
+		.sitemap-graph > svg.drag { cursor:grabbing; }
+		.sitemap-app button.sitemap-fs { position:absolute; z-index:4; top:6px; left:6px; display:flex; align-items:center; justify-content:center; width:auto; height:auto; min-width:0; min-height:0; margin:0; padding:6px; border:0; border-radius:4px; background:transparent; color:#646970; cursor:pointer; box-shadow:none; line-height:0; }
+		.sitemap-app button.sitemap-fs:hover { background:rgba(0,0,0,.06); color:#1d2327; }
+		.sitemap-app button.sitemap-fs svg, .sitemap-panel .sitemap-fold svg { width:12px; height:12px; display:block; pointer-events:none; }
 		.sitemap-sec { font-size:14px; font-weight:600; fill:#50575e; pointer-events:none; }
 		.sitemap-e-link { stroke:#8c8f94; stroke-opacity:.45; stroke-width:.8; }
 		.sitemap-e-menu { stroke:var(--c-menu); stroke-opacity:.75; stroke-width:2; }
@@ -802,9 +809,17 @@ function sitemap_render_page() {
 		.sitemap-match { stroke:#1d2327 !important; stroke-width:2.5 !important; }
 		.sitemap-tip, .sitemap-panel { position:absolute; background:#fff; color:#1d2327; border:1px solid var(--bd); border-radius:4px; box-shadow:0 4px 16px rgba(0,0,0,.12); }
 		.sitemap-tip { display:none; z-index:3; padding:6px 8px; font-size:12px; max-width:280px; pointer-events:none; }
-		.sitemap-panel { display:none; z-index:2; top:10px; right:10px; width:min(320px,calc(100% - 20px)); max-height:calc(100% - 20px); overflow:auto; padding:12px 14px; font-size:13px; }
-		.sitemap-panel h3 { margin:0 22px 4px 0; font-size:14px; }
-		.sitemap-panel .sitemap-x { position:absolute; top:4px; right:8px; border:0; background:none; font-size:18px; cursor:pointer; color:#646970; }
+		.sitemap-panel { display:none; z-index:2; top:10px; right:10px; width:min(320px,calc(100% - 20px)); max-height:calc(100% - 20px); overflow:auto; padding:8px 10px 12px; font-size:13px; }
+		.sitemap-panel-bar { display:flex; align-items:flex-start; gap:2px; }
+		.sitemap-panel-bar h3 { flex:1; min-width:0; margin:3px 0 4px; font-size:14px; }
+		.sitemap-panel .sitemap-x, .sitemap-panel .sitemap-fold { flex:none; width:18px; height:18px; border:0; background:none; padding:0; cursor:pointer; color:#646970; display:inline-flex; align-items:center; justify-content:center; }
+		.sitemap-panel .sitemap-fold { transform:translateY(2px); }
+		.sitemap-panel.is-collapsed .sitemap-fold { transform:translate(3px, 0); }
+		.sitemap-panel .sitemap-x { font-size:16px; line-height:1; }
+		.sitemap-panel .sitemap-x:hover, .sitemap-panel .sitemap-fold:hover { color:#1d2327; }
+		.sitemap-panel.is-collapsed { width:auto; max-width:min(360px,calc(100% - 20px)); padding:6px 8px; overflow:hidden; }
+		.sitemap-panel.is-collapsed .sitemap-panel-body { display:none; }
+		.sitemap-panel.is-collapsed .sitemap-panel-bar h3 { margin:3px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px; }
 		.sitemap-panel a { color:#2271b1; word-break:break-all; }
 		.sitemap-panel ul { margin:4px 0 8px; padding-left:16px; }
 		.sitemap-panel li { margin:2px 0; cursor:pointer; }
@@ -848,7 +863,12 @@ function sitemap_render_page() {
 		const esc = value => String(value == null ? '' : value).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
 		if (!D.nodes.length) { qs('sitemap-graph').textContent = 'No published pages.'; return; }
 
-		function sizeGraph() { const width = qs('sitemap-graph').clientWidth; qs('sitemap-graph').style.height = Math.round(Math.max(520, Math.min(860, width * 0.62))) + 'px'; }
+		const graph = qs('sitemap-graph');
+		function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+		function sizeGraph() {
+			if (fsElement() === graph) { graph.style.height = '100%'; return; }
+			graph.style.height = Math.round(Math.max(520, Math.min(860, graph.clientWidth * 0.62))) + 'px';
+		}
 		sizeGraph();
 
 		const W = 1700, H = 1100, CX = 560, CY = H / 2;
@@ -953,14 +973,49 @@ function sitemap_render_page() {
 		svg.addEventListener('click', () => { if (!drag || !drag.moved) select(null); });
 		qs('sitemap-fit').addEventListener('click', fit);
 
+		const fsEnter = '<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4"/></svg>';
+		const fsExit = '<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M7 3v4H3M13 3v4h4M7 17v-4H3M13 17v-4h4"/></svg>';
+		const fsBtn = qs('sitemap-fs');
+		function syncFullscreen() {
+			const on = fsElement() === graph;
+			fsBtn.title = on ? 'Exit full screen' : 'Full screen';
+			fsBtn.setAttribute('aria-label', fsBtn.title);
+			fsBtn.innerHTML = on ? fsExit : fsEnter;
+			sizeGraph();
+			requestAnimationFrame(fit);
+		}
+		fsBtn.addEventListener('click', ev => {
+			ev.stopPropagation();
+			if (fsElement() === graph) {
+				const exit = document.exitFullscreen || document.webkitExitFullscreen;
+				if (exit) exit.call(document);
+			} else {
+				const req = graph.requestFullscreen || graph.webkitRequestFullscreen;
+				if (req) req.call(graph);
+			}
+		});
+		document.addEventListener('fullscreenchange', syncFullscreen);
+		document.addEventListener('webkitfullscreenchange', syncFullscreen);
+
 		function showTip(n, ev) { const tip = qs('sitemap-tip'); tip.innerHTML = '<b>' + esc(n.title) + '</b><br><span class="sitemap-muted">/' + esc(n.path) + '/</span><br>' + esc((ST[n.status] || ST.orphan)[0]) + ' · incoming: ' + n.in.length + ' · outgoing: ' + n.out.length; tip.style.display = 'block'; moveTip(ev); }
 		function moveTip(ev) { const rect = qs('sitemap-graph').getBoundingClientRect(); const tip = qs('sitemap-tip'); tip.style.left = Math.min(ev.clientX - rect.left + 12, rect.width - 290) + 'px'; tip.style.top = (ev.clientY - rect.top + 12) + 'px'; }
 		function itemHtml(id) { const n = byId[id]; return n ? '<li data-id="' + esc(id) + '"><span class="sitemap-dot" style="background:' + (ST[n.status] || ST.orphan)[1] + '"></span> ' + esc(n.title) + '</li>' : ''; }
+		let panelCollapsed = false;
+		const chevronUp = '<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 12l6-6 6 6"/></svg>';
+		const chevronDown = '<svg viewBox="0 0 20 20" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" d="M4 8l6 6 6-6"/></svg>';
+		function applyPanelFold(panel) {
+			panel.classList.toggle('is-collapsed', panelCollapsed);
+			const fold = panel.querySelector('.sitemap-fold');
+			if (!fold) return;
+			fold.title = panelCollapsed ? 'Expand' : 'Collapse';
+			fold.setAttribute('aria-label', fold.title);
+			fold.innerHTML = panelCollapsed ? chevronDown : chevronUp;
+		}
 		function select(id) {
 			const panel = qs('sitemap-panel');
 			D.nodes.forEach(n => { n.el.classList.remove('sitemap-dim', 'sitemap-sel'); n.lbl.classList.remove('sitemap-dim'); n.hl = false; });
 			edgeEls.forEach(edge => edge.classList.remove('sitemap-dim', 'sitemap-hl', 'sitemap-hl-in', 'sitemap-hl-out'));
-			if (!id || !byId[id]) { panel.style.display = 'none'; applyLabels(); applyStatus(); return; }
+			if (!id || !byId[id]) { panelCollapsed = false; panel.style.display = 'none'; panel.classList.remove('is-collapsed'); applyLabels(); applyStatus(); return; }
 			const n = byId[id]; const near = new Set([id].concat(n.in, n.out));
 			edgeEls.forEach(edge => { if (edge._a.id === id || edge._b.id === id) { near.add(edge._a.id); near.add(edge._b.id); } });
 			D.nodes.forEach(other => { if (!near.has(other.id)) { other.el.classList.add('sitemap-dim'); other.lbl.classList.add('sitemap-dim'); } else other.hl = true; });
@@ -968,15 +1023,18 @@ function sitemap_render_page() {
 			edgeEls.forEach(edge => { if (edge._a.id === id) edge.classList.add('sitemap-hl', 'sitemap-hl-out'); else if (edge._b.id === id) edge.classList.add('sitemap-hl', 'sitemap-hl-in'); else edge.classList.add('sitemap-dim'); });
 			applyLabels();
 			const parent = n.path.indexOf('/') > 0 ? D.nodes.find(other => n.path.indexOf(other.path + '/') === 0 && other.path.split('/').length === n.path.split('/').length - 1) : null;
-			panel.innerHTML = '<button type="button" class="sitemap-x" title="Close">×</button><h3>' + esc(n.title) + '</h3>' +
+			panel.innerHTML = '<div class="sitemap-panel-bar"><h3>' + esc(n.title) + '</h3><button type="button" class="sitemap-fold" title="Collapse" aria-label="Collapse">' + chevronUp + '</button><button type="button" class="sitemap-x" title="Close" aria-label="Close">×</button></div><div class="sitemap-panel-body">' +
 				(n.url ? '<a href="' + esc(n.url) + '" target="_blank" rel="noopener">' + esc(n.url) + '</a><br>' : '') +
 				'<span class="sitemap-badge"><span class="sitemap-dot" style="background:' + (ST[n.status] || ST.orphan)[1] + '"></span>' + esc((ST[n.status] || ST.orphan)[0]) + '</span><span class="sitemap-badge">section: ' + esc(n.section) + '</span>' +
 				(n.type === 'post' ? '<span class="sitemap-badge">blog post</span>' : '') + (n.noSearch ? '<span class="sitemap-badge">hidden from site search</span>' : '') + (n.modified ? '<span class="sitemap-badge">modified ' + esc(n.modified) + '</span>' : '') +
 				(parent ? '<div class="sitemap-muted" style="margin-top:4px">Parent page:</div><ul>' + itemHtml(parent.id) + '</ul>' : '') +
 				'<div class="sitemap-muted" style="margin-top:6px">Linked from (' + n.in.length + '):</div><ul>' + (n.in.map(itemHtml).join('') || '<span class="sitemap-muted">none</span>') + '</ul>' +
 				'<div class="sitemap-muted">Links to (' + n.out.length + '):</div><ul>' + (n.out.map(itemHtml).join('') || '<span class="sitemap-muted">none</span>') + '</ul>' +
-				(n.broken.length ? '<div class="sitemap-muted">Broken links:</div><ul>' + n.broken.map(path => '<li>/' + esc(path) + '/</li>').join('') + '</ul>' : '');
+				(n.broken.length ? '<div class="sitemap-muted">Broken links:</div><ul>' + n.broken.map(path => '<li>/' + esc(path) + '/</li>').join('') + '</ul>' : '') +
+				'</div>';
 			panel.style.display = 'block';
+			applyPanelFold(panel);
+			panel.querySelector('.sitemap-fold').onclick = ev => { ev.stopPropagation(); panelCollapsed = !panelCollapsed; applyPanelFold(panel); };
 			panel.querySelector('.sitemap-x').onclick = ev => { ev.stopPropagation(); select(null); };
 			panel.querySelectorAll('li[data-id]').forEach(row => { row.onclick = () => focusNode(row.getAttribute('data-id')); });
 		}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "wordpress": {
+      "type": "stdio",
+      "command": "/home/m/blogfeatures/.cursor/wordpress-mcp.sh"
+    }
+  }
+}
