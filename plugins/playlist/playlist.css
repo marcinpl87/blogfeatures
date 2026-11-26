@@ -1,0 +1,35 @@
+.bf-playlist-heading {
+	margin: 0 0 0.75rem;
+}
+
+.bf-playlist-items {
+	list-style: decimal;
+	margin: 0;
+	padding-left: 2rem;
+}
+
+.bf-playlist-item {
+	margin: 0;
+	padding: 0.85rem 0;
+	border-bottom: 1px solid rgba(127, 127, 127, 0.35);
+}
+
+.bf-playlist-item:first-child {
+	padding-top: 0;
+}
+
+.bf-playlist-title {
+	font-weight: 600;
+	overflow-wrap: anywhere;
+}
+
+.bf-playlist-desc {
+	margin: 0.35rem 0 0;
+}
+
+.bf-playlist-audio {
+	display: block;
+	width: 100%;
+	max-width: 100%;
+	margin-top: 0.5rem;
+}

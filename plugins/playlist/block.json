@@ -1,0 +1,26 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "blogfeatures/playlist",
+	"title": "Playlista",
+	"category": "widgets",
+	"icon": "playlist-audio",
+	"description": "Lista pozycji zapisana na tej stronie. Każda strona ma własną listę.",
+	"keywords": [ "playlist", "playlista", "lista", "nagrania" ],
+	"attributes": {
+		"heading": {
+			"type": "string",
+			"default": ""
+		},
+		"items": {
+			"type": "array",
+			"default": []
+		}
+	},
+	"supports": {
+		"html": false
+	},
+	"editorScript": "file:./editor.js",
+	"editorStyle": "file:./editor.css",
+	"style": "file:./playlist.css"
+}

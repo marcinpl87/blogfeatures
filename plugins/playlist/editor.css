@@ -1,0 +1,59 @@
+.bf-playlist-editor-hint {
+	margin: 0 0 12px;
+	color: #757575;
+}
+
+.bf-playlist-editor > .components-base-control {
+	margin-bottom: 12px;
+}
+
+.bf-playlist-editor-item {
+	margin: 0 0 8px;
+	padding: 8px 12px;
+	border: 1px solid #dcdcde;
+	background: #fff;
+}
+
+.bf-playlist-editor-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.bf-playlist-editor-toggle {
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	text-align: left;
+	cursor: pointer;
+	overflow-wrap: anywhere;
+}
+
+.bf-playlist-editor-toggle:hover,
+.bf-playlist-editor-toggle:focus {
+	text-decoration: underline;
+}
+
+.bf-playlist-editor-actions {
+	display: flex;
+	flex: none;
+	gap: 2px;
+}
+
+.bf-playlist-editor-fields {
+	margin-top: 12px;
+}
+
+.bf-playlist-editor-fields > * + * {
+	margin-top: 12px;
+}
+
+.bf-playlist-editor .components-button.is-primary {
+	margin-top: 4px;
+}
