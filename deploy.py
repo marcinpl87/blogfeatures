@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Upload every file in plugins/ to the FTP server described in .env."""
+"""Upload every file in plugins/ to the FTP server described in .env.
+
+Usage: python3 deploy.py [dev|prod]   (default: dev)
+"""
 
 import os
 import sys
@@ -33,11 +36,23 @@ def use_tls():
     return os.environ.get("FTP_TLS", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def open_remote_dir(ftp, remote_dir):
+TARGETS = {"dev": "FTP_DIR_DEV", "prod": "FTP_DIR_PROD"}
+
+
+def parse_target(argv):
+    if len(argv) > 2:
+        sys.exit("Usage: python3 deploy.py [dev|prod]")
+    target = argv[1].strip().lower() if len(argv) == 2 else "dev"
+    if target not in TARGETS:
+        sys.exit(f"Unknown target {target!r}. Use dev or prod.")
+    return target
+
+
+def open_remote_dir(ftp, remote_dir, var_name):
     try:
         ftp.cwd(remote_dir)
     except error_perm as exc:
-        sys.exit(f"Could not open FTP_DIR {remote_dir}: {exc}")
+        sys.exit(f"Could not open {var_name} {remote_dir}: {exc}")
 
 
 def upload_tree(ftp, local_root):
@@ -61,11 +76,13 @@ def upload_tree(ftp, local_root):
 
 
 def main():
+    target = parse_target(sys.argv)
     load_env(ENV_PATH)
     host = require("FTP_HOST")
     user = require("FTP_USER")
     password = require("FTP_PASS")
-    remote_dir = os.environ.get("FTP_DIR", "/").strip() or "/"
+    dir_var = TARGETS[target]
+    remote_dir = require(dir_var)
 
     if not PLUGINS.is_dir():
         sys.exit("plugins/ directory is missing.")
@@ -74,7 +91,8 @@ def main():
     ftp.login(user, password)
     if use_tls():
         ftp.prot_p()
-    open_remote_dir(ftp, remote_dir)
+    print(f"deploying to {target}: {remote_dir}")
+    open_remote_dir(ftp, remote_dir, dir_var)
     upload_tree(ftp, PLUGINS)
     ftp.quit()
 
